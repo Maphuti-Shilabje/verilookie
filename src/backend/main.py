@@ -1,5 +1,7 @@
+
 import os
 import shutil
+import cv2
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,7 +33,6 @@ try:
     model = ViTForImageClassification.from_pretrained(MODEL_NAME)
 except Exception as e:
     print(f"Error loading model: {e}")
-    # Handle model loading failure gracefully
     processor = None
     model = None
 
@@ -48,7 +49,6 @@ class Detector:
     def detect_image(self, image_path: str) -> DetectionResult:
         if self.model is None or self.processor is None:
             raise HTTPException(status_code=503, detail="Model is not available")
-
         try:
             image = Image.open(image_path).convert("RGB")
             inputs = self.processor(images=image, return_tensors="pt")
@@ -75,6 +75,51 @@ class Detector:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error during detection: {str(e)}")
 
+    def detect_video(self, video_path: str, frames_to_process: int = 5) -> DetectionResult:
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise HTTPException(status_code=500, detail="Error opening video file")
+
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        
+        results = []
+        frame_interval = max(1, frame_count // frames_to_process)
+
+        for i in range(frames_to_process):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, i * frame_interval)
+            ret, frame = cap.read()
+            if not ret:
+                continue
+
+            temp_frame_path = os.path.join("temp", f"frame_{i}.jpg")
+            cv2.imwrite(temp_frame_path, frame)
+            
+            try:
+                result = self.detect_image(temp_frame_path)
+                results.append(result)
+            finally:
+                os.remove(temp_frame_path)
+
+        cap.release()
+
+        if not results:
+            return DetectionResult(confidence_score=0.0, label="Error", explanation="Could not process any frames from the video.")
+
+        fake_count = sum(1 for r in results if r.label == "Fake")
+        real_count = len(results) - fake_count
+
+        if fake_count > real_count:
+            final_label = "Fake"
+            avg_confidence = sum(r.confidence_score for r in results if r.label == "Fake") / fake_count
+            explanation = f"{fake_count} out of {len(results)} analyzed frames were flagged as suspicious, suggesting the video may be a deepfake."
+        else:
+            final_label = "Real"
+            avg_confidence = sum(r.confidence_score for r in results if r.label == "Real") / real_count if real_count > 0 else 1.0
+            explanation = "The majority of analyzed frames appear to be authentic."
+
+        return DetectionResult(confidence_score=avg_confidence, label=final_label, explanation=explanation)
+
 detector = Detector(model, processor)
 
 @app.post("/detect", response_model=DetectionResult)
@@ -87,14 +132,15 @@ async def detect(file: UploadFile = File(...)):
     try:
         if file.content_type.startswith("image/"):
             result = detector.detect_image(temp_file_path)
+        elif file.content_type.startswith("video/"):
+            result = detector.detect_video(temp_file_path)
         else:
             result = DetectionResult(
                 confidence_score=0.0,
                 label="Not Supported",
-                explanation="This file type is not supported for detection. Please upload an image."
+                explanation="This file type is not supported. Please upload an image or video."
             )
     finally:
-        # Clean up the temp file
         os.remove(temp_file_path)
 
     return result
