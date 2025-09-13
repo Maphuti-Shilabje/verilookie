@@ -96,3 +96,14 @@ coverage/
 .env
 .env.local
 .env.*.local
+
+# ==========================
+# GEMINI
+# ==========================
+GEMINI.md
+
+# ==========================
+# verilookie solution
+# ==========================
+verilookie solution/
+src/debug
