@@ -14,14 +14,15 @@ const questions = [
   },
 ];
 
-function Quiz() {
+function Quiz({ addXp }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [score, setScore] = useState(0);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
   const [showScore, setShowScore] = useState(false);
 
   const handleAnswer = (answer) => {
     if (answer === questions[currentQuestion].answer) {
-      setScore(score + 1);
+      addXp(5); // 5 XP for a correct answer
+      setCorrectAnswers(correctAnswers + 1);
     }
 
     const nextQuestion = currentQuestion + 1;
@@ -32,11 +33,20 @@ function Quiz() {
     }
   };
 
+  const restartQuiz = () => {
+    setCurrentQuestion(0);
+    setCorrectAnswers(0);
+    setShowScore(false);
+  };
+
   return (
     <div className="quiz">
       <h2>Scam Awareness Quiz</h2>
       {showScore ? (
-        <div>You scored {score} out of {questions.length}</div>
+        <div>
+          <p>You scored {correctAnswers} out of {questions.length}</p>
+          <button onClick={restartQuiz}>Restart Quiz</button>
+        </div>
       ) : (
         <>
           <div className="question-section">

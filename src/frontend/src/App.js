@@ -9,9 +9,13 @@ function App() {
   const [detectionResult, setDetectionResult] = useState(null);
   const [xp, setXp] = useState(0);
 
+  const addXp = (amount) => {
+    setXp(prevXp => prevXp + amount);
+  };
+
   const handleDetection = (result) => {
     setDetectionResult(result);
-    setXp(prevXp => prevXp + 10);
+    addXp(10); // 10 XP for each detection
   };
 
   return (
@@ -24,7 +28,7 @@ function App() {
         <UploadBox onDetection={handleDetection} />
         {detectionResult && <ResultCard result={detectionResult} />}
         <Gamification xp={xp} />
-        <Quiz />
+        <Quiz addXp={addXp} />
       </main>
     </div>
   );
