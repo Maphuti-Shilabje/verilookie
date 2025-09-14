@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 
-function UploadBox({ onDetection, onAIGeneratedDetection }) {
+function UploadBox({ onDetection, onAIGeneratedDetection, onUnifiedAnalysis }) {
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -9,7 +9,7 @@ function UploadBox({ onDetection, onAIGeneratedDetection }) {
     setFile(event.target.files[0]);
   };
 
-  const handleSubmit = async (event, isAIGenerated = false) => {
+  const handleSubmit = async (event, detectionType = 'unified') => {
     event.preventDefault();
     if (!file) {
       alert('Please select a file first!');
@@ -21,21 +21,54 @@ function UploadBox({ onDetection, onAIGeneratedDetection }) {
     formData.append('file', file);
 
     try {
-      const endpoint = isAIGenerated ? 'http://localhost:8000/detect-ai-generated' : 'http://localhost:8000/detect';
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Detection failed');
-      }
-
-      const result = await response.json();
-      if (isAIGenerated) {
-        onAIGeneratedDetection(result);
-      } else {
-        onDetection(result);
+      let endpoint, response;
+      
+      switch (detectionType) {
+        case 'deepfake':
+          endpoint = 'http://localhost:8000/detect';
+          response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            throw new Error('Deepfake detection failed');
+          }
+          
+          const deepfakeResult = await response.json();
+          onDetection(deepfakeResult);
+          break;
+          
+        case 'ai':
+          endpoint = 'http://localhost:8000/detect-ai-generated';
+          response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            throw new Error('AI detection failed');
+          }
+          
+          const aiResult = await response.json();
+          onAIGeneratedDetection(aiResult);
+          break;
+          
+        case 'unified':
+        default:
+          endpoint = 'http://localhost:8000/analyze';
+          response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            throw new Error('Unified analysis failed');
+          }
+          
+          const unifiedResult = await response.json();
+          onUnifiedAnalysis(unifiedResult);
+          break;
       }
     } catch (error) {
       console.error('Error during detection:', error);
@@ -74,15 +107,23 @@ function UploadBox({ onDetection, onAIGeneratedDetection }) {
         <div className="button-group">
           <button 
             type="button" 
-            onClick={(e) => handleSubmit(e, false)} 
+            onClick={(e) => handleSubmit(e, 'unified')} 
             disabled={isLoading}
             className="detect-button"
           >
-            {isLoading ? '🔍 Analyzing...' : '🕵️ Deepfake Detection'}
+            {isLoading ? '🔍 Analyzing...' : '🕵️ Unified Analysis'}
           </button>
           <button 
             type="button" 
-            onClick={(e) => handleSubmit(e, true)} 
+            onClick={(e) => handleSubmit(e, 'deepfake')} 
+            disabled={isLoading}
+            className="detect-button"
+          >
+            {isLoading ? '🔍 Checking...' : '🕵️ Deepfake Detection'}
+          </button>
+          <button 
+            type="button" 
+            onClick={(e) => handleSubmit(e, 'ai')} 
             disabled={isLoading}
             className="ai-button"
           >

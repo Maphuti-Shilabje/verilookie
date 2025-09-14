@@ -19,6 +19,9 @@ except Exception as e:
     nvidia_client = None
     NVIDIA_API_AVAILABLE = False
 
+# Import detection pipeline
+from detection_pipeline import DetectionPipeline, UnifiedDetectionResult
+
 # Create the temp directory if it doesn't exist
 if not os.path.exists("temp"):
     os.makedirs("temp")
@@ -188,6 +191,7 @@ class Detector:
         return DetectionResult(confidence_score=avg_confidence, label=final_label, explanation=explanation)
 
 detector = Detector(model, processor)
+detection_pipeline = DetectionPipeline(detector)
 
 @app.post("/detect", response_model=DetectionResult)
 async def detect(file: UploadFile = File(...)):
@@ -224,6 +228,26 @@ async def detect_ai_generated(file: UploadFile = File(...)):
             result = detector.detect_ai_generated(temp_file_path)
         else:
             raise HTTPException(status_code=400, detail="Only image files are supported for AI-generated detection.")
+    finally:
+        # Clean up the temp file
+        os.remove(temp_file_path)
+
+    return result
+
+@app.post("/analyze", response_model=UnifiedDetectionResult)
+async def analyze(file: UploadFile = File(...)):
+    temp_file_path = os.path.join("temp", file.filename)
+    with open(temp_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    result = None
+    try:
+        if file.content_type.startswith("image/"):
+            result = detection_pipeline.analyze_image(temp_file_path)
+        elif file.content_type.startswith("video/"):
+            result = detection_pipeline.analyze_video(temp_file_path)
+        else:
+            raise HTTPException(status_code=400, detail="Only image and video files are supported for analysis.")
     finally:
         # Clean up the temp file
         os.remove(temp_file_path)

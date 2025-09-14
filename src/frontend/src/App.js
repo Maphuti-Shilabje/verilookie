@@ -9,6 +9,7 @@ import GamificationService from './services/GamificationService';
 function App() {
   const [detectionResult, setDetectionResult] = useState(null);
   const [aiGeneratedResult, setAiGeneratedResult] = useState(null);
+  const [unifiedResult, setUnifiedResult] = useState(null);
   const [xp, setXp] = useState(0);
   const [totalDetections, setTotalDetections] = useState(0);
   const [aiDetections, setAiDetections] = useState(0);
@@ -110,6 +111,7 @@ function App() {
   const handleDetection = (result) => {
     setDetectionResult(result);
     setAiGeneratedResult(null); // Clear AI generated result when we get a regular detection
+    setUnifiedResult(null); // Clear unified result when we get a regular detection
     
     // Add XP for detection
     addXp(10);
@@ -124,6 +126,7 @@ function App() {
   const handleAIGeneratedDetection = (result) => {
     setAiGeneratedResult(result);
     setDetectionResult(null); // Clear regular detection result when we get an AI generated detection
+    setUnifiedResult(null); // Clear unified result when we get an AI generated detection
     
     // Add XP for AI detection
     addXp(15);
@@ -134,6 +137,36 @@ function App() {
     
     // Check for achievements
     checkAndAddAchievements('ai_detection');
+  };
+
+  const handleUnifiedAnalysis = (result) => {
+    setUnifiedResult(result);
+    setDetectionResult(null); // Clear regular detection result
+    setAiGeneratedResult(null); // Clear AI generated result
+    
+    // Add XP based on result type
+    if (result.type === 'Deepfake') {
+      addXp(20); // More XP for deepfake detection
+    } else if (result.type === 'AI-generated') {
+      addXp(15); // AI detection XP
+    } else {
+      addXp(10); // Authentic image XP
+    }
+    
+    // Update detection counts
+    setTotalDetections(prev => prev + 1);
+    if (result.type === 'AI-generated') {
+      setAiDetections(prev => prev + 1);
+    }
+    
+    // Check for achievements
+    if (result.type === 'Deepfake') {
+      checkAndAddAchievements('deepfake_detection');
+    } else if (result.type === 'AI-generated') {
+      checkAndAddAchievements('ai_detection');
+    } else {
+      checkAndAddAchievements('detection');
+    }
   };
 
   const handleQuizComplete = (score, total) => {
@@ -170,6 +203,7 @@ function App() {
         <UploadBox 
           onDetection={handleDetection} 
           onAIGeneratedDetection={handleAIGeneratedDetection} 
+          onUnifiedAnalysis={handleUnifiedAnalysis}
         />
         {detectionResult && <ResultCard result={detectionResult} />}
         {aiGeneratedResult && (
@@ -199,6 +233,31 @@ function App() {
               ) : (
                 <p><strong>AI Generated:</strong> {aiGeneratedResult.label === 'AI Generated' ? 'Yes' : 'No'}</p>
               )}
+            </div>
+          </div>
+        )}
+        {unifiedResult && (
+          <div className={`result-card ${unifiedResult.type === 'Deepfake' || unifiedResult.type === 'AI-generated' ? 'fake-result' : 'real-result'}`}>
+            <h2 className="result-title">🔍 Unified Analysis Result</h2>
+            <div className="result-summary">
+              <div className="result-label">
+                <span className="label-text">Result:</span>
+                <span className={`label-value ${unifiedResult.type === 'Deepfake' || unifiedResult.type === 'AI-generated' ? 'fake' : 'real'}`}>
+                  {unifiedResult.type}
+                </span>
+              </div>
+              <div className="result-confidence">
+                <span className="confidence-text">Confidence:</span>
+                <span className="confidence-value">{unifiedResult.confidence}%</span>
+              </div>
+            </div>
+            <div className="result-explanation">
+              <h3>📝 Explanation</h3>
+              <p>{unifiedResult.explanation}</p>
+            </div>
+            <div className="ai-specific">
+              <h3>🔍 Detection Pipeline</h3>
+              <p>This result was generated using our unified detection pipeline that combines deepfake and AI generation detection.</p>
             </div>
           </div>
         )}
