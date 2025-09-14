@@ -76,12 +76,18 @@ class Detector:
             label = self.model.config.id2label[predicted_class_idx.item()]
             confidence_score = confidence.item()
 
-            if label == "Realism":
+            # Fix the label mapping - the model returns "Fake" for real images and "Realism" for fake images (reversed)
+            if label == "Fake":
                 label = "Real"
                 explanation = "The model has not found any significant signs of manipulation."
-            else: # Deepfake
+            elif label == "Realism":
                 label = "Fake"
                 explanation = "The model has detected inconsistencies in the media, suggesting it might be a deepfake."
+            else:
+                # Handle any other labels the model might return
+                # Default to Real for unknown labels to be safe
+                label = "Real"
+                explanation = f"The model detected this as potentially real with label: {label}"
 
             return DetectionResult(
                 confidence_score=confidence_score,
@@ -105,18 +111,29 @@ class Detector:
             
             # Extract the detection data
             ai_probability = result.get("ai_probability", 0.0)
-            is_ai_generated = result.get("is_ai_generated", False)
             
-            label = "AI Generated" if is_ai_generated else "Not AI Generated"
-            
-            explanation = (
-                "This image has been detected as AI-generated based on artifacts and patterns "
-                "characteristic of generative models." if is_ai_generated else
-                "This image does not show strong signs of being AI-generated."
-            )
+            # Apply proper confidence calculation based on threshold logic
+            # If score >= 0.5: AI-generated, confidence = score
+            # If score < 0.5: Not AI-generated, confidence = 1 - score
+            # If score == 0.5: Uncertain, confidence = 0.5
+            if ai_probability > 0.5:
+                is_ai_generated = True
+                confidence_score = ai_probability
+                label = "AI Generated"
+                explanation = "This image has been detected as AI-generated based on artifacts and patterns characteristic of generative models."
+            elif ai_probability < 0.5:
+                is_ai_generated = False
+                confidence_score = 1 - ai_probability
+                label = "Not AI Generated"
+                explanation = "This image does not show strong signs of being AI-generated."
+            else:  # ai_probability == 0.5
+                is_ai_generated = False  # Default to not AI-generated for uncertain cases
+                confidence_score = 0.5
+                label = "Uncertain"
+                explanation = "The model is uncertain about whether this image is AI-generated or not."
             
             return AIGeneratedDetectionResult(
-                confidence_score=ai_probability,
+                confidence_score=confidence_score,
                 label=label,
                 explanation=explanation,
                 is_ai_generated=is_ai_generated
@@ -161,7 +178,7 @@ class Detector:
 
         if fake_count > real_count:
             final_label = "Fake"
-            avg_confidence = sum(r.confidence_score for r in results if r.label == "Fake") / fake_count
+            avg_confidence = sum(r.confidence_score for r in results if r.label == "Fake") / fake_count if fake_count > 0 else 0.0
             explanation = f"{fake_count} out of {len(results)} analyzed frames were flagged as suspicious, suggesting the video may be a deepfake."
         else:
             final_label = "Real"

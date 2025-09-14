@@ -173,12 +173,12 @@ function App() {
         />
         {detectionResult && <ResultCard result={detectionResult} />}
         {aiGeneratedResult && (
-          <div className={`result-card ${aiGeneratedResult.is_ai_generated ? 'fake-result' : ''}`}>
+          <div className={`result-card ${aiGeneratedResult.label === 'AI Generated' ? 'fake-result' : 'real-result'}`}>
             <h2 className="result-title">🤖 AI Generation Detection Result</h2>
             <div className="result-summary">
               <div className="result-label">
                 <span className="label-text">Result:</span>
-                <span className={`label-value ${aiGeneratedResult.is_ai_generated ? 'fake' : 'real'}`}>
+                <span className={`label-value ${aiGeneratedResult.label === 'AI Generated' ? 'fake' : 'real'}`}>
                   {aiGeneratedResult.label}
                 </span>
               </div>
@@ -194,7 +194,11 @@ function App() {
             <div className="ai-specific">
               <h3>🤖 AI Detection</h3>
               <p>This content has been analyzed for AI-generated characteristics.</p>
-              <p><strong>AI Generated:</strong> {aiGeneratedResult.is_ai_generated ? 'Yes' : 'No'}</p>
+              {aiGeneratedResult.label === 'Uncertain' ? (
+                <p><strong>AI Generated:</strong> Uncertain (50% AI-generated vs 50% not AI-generated)</p>
+              ) : (
+                <p><strong>AI Generated:</strong> {aiGeneratedResult.label === 'AI Generated' ? 'Yes' : 'No'}</p>
+              )}
             </div>
           </div>
         )}
