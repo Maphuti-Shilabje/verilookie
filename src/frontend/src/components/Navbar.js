@@ -1,7 +1,7 @@
 import React from 'react';
 import './Navbar.css';
 
-const Navbar = ({ level, xp, onGamificationClick }) => {
+const Navbar = ({ level, xp, onGamificationClick, onPageChange }) => {
   // Calculate level name based on XP
   const getLevelName = (xp) => {
     if (xp < 100) return 'Novice';
@@ -21,13 +21,22 @@ const Navbar = ({ level, xp, onGamificationClick }) => {
         </div>
         <ul className="navbar-menu">
           <li className="navbar-item">
-            <a href="#home" className="navbar-link">Home</a>
+            <a href="#home" className="navbar-link" onClick={(e) => {
+              e.preventDefault();
+              onPageChange('home');
+            }}>Home</a>
           </li>
           <li className="navbar-item">
-            <a href="#detect" className="navbar-link">Detect</a>
+            <a href="#detect" className="navbar-link" onClick={(e) => {
+              e.preventDefault();
+              onPageChange('home');
+            }}>Detect</a>
           </li>
           <li className="navbar-item">
-            <a href="#quiz" className="navbar-link">Quiz</a>
+            <a href="#quiz" className="navbar-link" onClick={(e) => {
+              e.preventDefault();
+              onPageChange('quiz');
+            }}>Quiz</a>
           </li>
           <li className="navbar-item">
             <div className="gamification-pill" onClick={onGamificationClick}>

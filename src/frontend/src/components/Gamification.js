@@ -46,7 +46,7 @@ const Gamification = ({ xp, level, badges, streak, achievements, onLevelUp, show
       <div className="gamification-overlay" onClick={onClose}></div>
       <div className="gamification-content">
         <button className="close-button" onClick={onClose}>×</button>
-        <h2 className="gamification-title">Your Progress</h2>
+        <h2 className="gamification-title">🏆Your Progress 🏆</h2>
         
         {/* Level Up Notification */}
         {showLevelUp && levelUpData && (

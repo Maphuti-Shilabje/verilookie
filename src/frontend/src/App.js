@@ -4,7 +4,7 @@ import Navbar from './components/Navbar';
 import UploadBox from './components/UploadBox';
 import ResultCard from './components/ResultCard';
 import Gamification from './components/Gamification';
-import Quiz from './components/Quiz';
+import QuizPage from './components/QuizPage';
 import GamificationService from './services/GamificationService';
 
 function App() {
@@ -20,6 +20,7 @@ function App() {
   const [lastActivityDate, setLastActivityDate] = useState(null);
   const [level, setLevel] = useState(1);
   const [showGamificationModal, setShowGamificationModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState('home'); // Add state for current page
 
   // Initialize from localStorage if available
   useEffect(() => {
@@ -191,27 +192,30 @@ function App() {
     setShowGamificationModal(false);
   };
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   // Calculate current level
   const levelData = GamificationService.calculateLevel(xp);
   
   // Get unlocked badges
   const badges = GamificationService.getUnlockedBadges(xp, achievements.map(a => a.id));
 
-  return (
-    <div>
-            <Navbar 
-        level={level} 
-        xp={xp} 
-        onGamificationClick={handleGamificationClick} 
-      />
-    <div className="App">
+  // Render content based on current page
+  const renderContent = () => {
+    if (currentPage === 'quiz') {
+      return (
+        <QuizPage 
+          addXp={addXp} 
+          onComplete={handleQuizComplete}
+        />
+      );
+    }
 
-
-      <header className="App-header">
-        <h1>Verilookie</h1>
-        <p>Your friendly neighborhood deepfake detector.</p>
-      </header>
-      <main>
+    // Default to home page content
+    return (
+      <>
         <UploadBox 
           onDetection={handleDetection} 
           onAIGeneratedDetection={handleAIGeneratedDetection} 
@@ -273,22 +277,37 @@ function App() {
             </div>
           </div>
         )}
-        <Gamification 
-          xp={xp}
-          level={level}
-          badges={badges}
-          streak={currentStreak}
-          achievements={achievements}
-          onLevelUp={handleLevelUp}
-          show={showGamificationModal}
-          onClose={closeGamificationModal}
-        />
-        <Quiz 
-          addXp={addXp} 
-          onComplete={handleQuizComplete}
-        />
-      </main>
-    </div>
+      </>
+    );
+  };
+
+  return (
+    <div>
+      <Navbar 
+        level={level} 
+        xp={xp} 
+        onGamificationClick={handleGamificationClick} 
+        onPageChange={handlePageChange}
+      />
+      <div className="App">
+        <header className="App-header">
+          <h1>Verilookie</h1>
+          <p>Your friendly neighborhood deepfake detector.</p>
+        </header>
+        <main>
+          {renderContent()}
+          <Gamification 
+            xp={xp}
+            level={level}
+            badges={badges}
+            streak={currentStreak}
+            achievements={achievements}
+            onLevelUp={handleLevelUp}
+            show={showGamificationModal}
+            onClose={closeGamificationModal}
+          />
+        </main>
+      </div>
     </div>
   );
 }
