@@ -41,6 +41,14 @@ function QuizList({ addXp, onComplete }) {
     setAnswers({});
   };
 
+  const handleBackToQuizList = () => {
+    setSelectedQuiz(null);
+    setCurrentQuestion(0);
+    setCorrectAnswers(0);
+    setShowScore(false);
+    setAnswers({});
+  };
+
   const handleAnswer = (questionId, answer) => {
     // Track user selection
     setAnswers(prev => ({
@@ -158,6 +166,11 @@ function QuizList({ addXp, onComplete }) {
       
       {selectedQuiz && showScore && (
         <div className="quiz-results">
+          <div className="quiz-header">
+            <button onClick={handleBackToQuizList} className="back-button">
+              ← Back to Quiz List
+            </button>
+          </div>
           <div className="score-circle">
             <div className="score-value">{correctAnswers}</div>
             <div className="score-total">/ {selectedQuiz.questions.length}</div>
@@ -181,6 +194,11 @@ function QuizList({ addXp, onComplete }) {
       
       {selectedQuiz && !showScore && (
         <div className="quiz-content">
+          <div className="quiz-header">
+            <button onClick={handleBackToQuizList} className="back-button">
+              ← Back to Quiz List
+            </button>
+          </div>
           <div className="question-section">
             <div className="question-progress">
               Question {currentQuestion + 1} of {selectedQuiz.questions.length}

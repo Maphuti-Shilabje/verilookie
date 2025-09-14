@@ -64,6 +64,26 @@
   font-size: 2em;
 }
 
+.quiz-header {
+  margin-bottom: 20px;
+}
+
+.back-button {
+  background-color: #95a5a6;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  font-size: 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-weight: 500;
+}
+
+.back-button:hover {
+  background-color: #7f8c8d;
+}
+
 .quiz-option {
   display: block;
   width: 100%;
