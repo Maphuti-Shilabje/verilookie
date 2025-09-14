@@ -4,12 +4,13 @@ import UploadBox from './components/UploadBox';
 import ResultCard from './components/ResultCard';
 import Gamification from './components/Gamification';
 import Quiz from './components/Quiz';
+import Modal from './components/Modal';
 import GamificationService from './services/GamificationService';
 
 function App() {
-  const [detectionResult, setDetectionResult] = useState(null);
-  const [aiGeneratedResult, setAiGeneratedResult] = useState(null);
-  const [unifiedResult, setUnifiedResult] = useState(null);
+  const [currentResult, setCurrentResult] = useState(null);
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpData, setLevelUpData] = useState({ level: 1, xpGained: 0 });
   const [xp, setXp] = useState(0);
   const [totalDetections, setTotalDetections] = useState(0);
   const [aiDetections, setAiDetections] = useState(0);
@@ -79,7 +80,21 @@ function App() {
     const streakBonus = GamificationService.calculateStreakBonus(currentStreak);
     const totalXP = amount + streakBonus;
     
-    setXp(prevXp => prevXp + totalXP);
+    const newXp = xp + totalXP;
+    setXp(newXp);
+    
+    // Check for level up
+    const oldLevel = level;
+    const newLevel = GamificationService.calculateLevel(newXp).level;
+    
+    if (newLevel > oldLevel) {
+      setLevel(newLevel);
+      setLevelUpData({ level: newLevel, xpGained: totalXP });
+      // Show level up notification after a short delay to ensure result modal is closed
+      setTimeout(() => {
+        setShowLevelUp(true);
+      }, 500);
+    }
   };
 
   const checkAndAddAchievements = (action, actionData = {}) => {
@@ -109,9 +124,8 @@ function App() {
   };
 
   const handleDetection = (result) => {
-    setDetectionResult(result);
-    setAiGeneratedResult(null); // Clear AI generated result when we get a regular detection
-    setUnifiedResult(null); // Clear unified result when we get a regular detection
+    setCurrentResult(result);
+    setShowResultModal(true);
     
     // Add XP for detection
     addXp(10);
@@ -124,9 +138,8 @@ function App() {
   };
 
   const handleAIGeneratedDetection = (result) => {
-    setAiGeneratedResult(result);
-    setDetectionResult(null); // Clear regular detection result when we get an AI generated detection
-    setUnifiedResult(null); // Clear unified result when we get an AI generated detection
+    setCurrentResult(result);
+    setShowResultModal(true);
     
     // Add XP for AI detection
     addXp(15);
@@ -140,9 +153,8 @@ function App() {
   };
 
   const handleUnifiedAnalysis = (result) => {
-    setUnifiedResult(result);
-    setDetectionResult(null); // Clear regular detection result
-    setAiGeneratedResult(null); // Clear AI generated result
+    setCurrentResult(result);
+    setShowResultModal(true);
     
     // Add XP based on result type
     if (result.type === 'Deepfake') {
@@ -220,62 +232,10 @@ function App() {
           onAIGeneratedDetection={handleAIGeneratedDetection} 
           onUnifiedAnalysis={handleUnifiedAnalysis}
         />
-        {detectionResult && <ResultCard result={detectionResult} />}
-        {aiGeneratedResult && (
-          <div className={`result-card ${aiGeneratedResult.label === 'AI Generated' ? 'fake-result' : 'real-result'}`}>
-            <h2 className="result-title">🤖 AI Generation Detection Result</h2>
-            <div className="result-summary">
-              <div className="result-label">
-                <span className="label-text">Result:</span>
-                <span className={`label-value ${aiGeneratedResult.label === 'AI Generated' ? 'fake' : 'real'}`}>
-                  {aiGeneratedResult.label}
-                </span>
-              </div>
-              <div className="result-confidence">
-                <span className="confidence-text">Confidence:</span>
-                <span className="confidence-value">{(aiGeneratedResult.confidence_score * 100).toFixed(2)}%</span>
-              </div>
-            </div>
-            <div className="result-explanation">
-              <h3>📝 Explanation</h3>
-              <p>{aiGeneratedResult.explanation}</p>
-            </div>
-            <div className="ai-specific">
-              <h3>🤖 AI Detection</h3>
-              <p>This content has been analyzed for AI-generated characteristics.</p>
-              {aiGeneratedResult.label === 'Uncertain' ? (
-                <p><strong>AI Generated:</strong> Uncertain (50% AI-generated vs 50% not AI-generated)</p>
-              ) : (
-                <p><strong>AI Generated:</strong> {aiGeneratedResult.label === 'AI Generated' ? 'Yes' : 'No'}</p>
-              )}
-            </div>
-          </div>
-        )}
-        {unifiedResult && (
-          <div className={`result-card ${unifiedResult.type === 'Deepfake' || unifiedResult.type === 'AI-generated' ? 'fake-result' : 'real-result'}`}>
-            <h2 className="result-title">🔍 Unified Analysis Result</h2>
-            <div className="result-summary">
-              <div className="result-label">
-                <span className="label-text">Result:</span>
-                <span className={`label-value ${unifiedResult.type === 'Deepfake' || unifiedResult.type === 'AI-generated' ? 'fake' : 'real'}`}>
-                  {unifiedResult.type}
-                </span>
-              </div>
-              <div className="result-confidence">
-                <span className="confidence-text">Confidence:</span>
-                <span className="confidence-value">{unifiedResult.confidence}%</span>
-              </div>
-            </div>
-            <div className="result-explanation">
-              <h3>📝 Explanation</h3>
-              <p>{unifiedResult.explanation}</p>
-            </div>
-            <div className="ai-specific">
-              <h3>🔍 Detection Pipeline</h3>
-              <p>This result was generated using our unified detection pipeline that combines deepfake and AI generation detection.</p>
-            </div>
-          </div>
-        )}
+        <Quiz 
+          addXp={addXp} 
+          onComplete={handleQuizComplete}
+        />
         <Gamification 
           xp={xp}
           level={level}
@@ -284,11 +244,36 @@ function App() {
           achievements={achievements}
           onLevelUp={handleLevelUp}
         />
-        <Quiz 
-          addXp={addXp} 
-          onComplete={handleQuizComplete}
-        />
       </main>
+      
+      {/* Result Modal */}
+      <Modal 
+        isOpen={showResultModal} 
+        onClose={() => setShowResultModal(false)}
+        title="Analysis Result"
+      >
+        <ResultCard result={currentResult} />
+      </Modal>
+      
+      {/* Level Up Modal */}
+      <Modal 
+        isOpen={showLevelUp} 
+        onClose={() => setShowLevelUp(false)}
+        title="Level Up!"
+      >
+        <div className="level-up-content">
+          <div className="level-up-icon">🎉</div>
+          <h3 className="level-up-title">Congratulations!</h3>
+          <p className="level-up-text">You've reached level {levelUpData.level}</p>
+          <p className="xp-gained-text">+{levelUpData.xpGained} XP gained</p>
+          <button 
+            className="btn btn-primary"
+            onClick={() => setShowLevelUp(false)}
+          >
+            Continue
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
