@@ -173,7 +173,7 @@ function App() {
         />
         {detectionResult && <ResultCard result={detectionResult} />}
         {aiGeneratedResult && (
-          <div className={`result-card ${aiGeneratedResult.is_ai_generated ? 'fake-result' : 'real-result'}`}>
+          <div className={`result-card ${aiGeneratedResult.is_ai_generated ? 'fake-result' : ''}`}>
             <h2 className="result-title">🤖 AI Generation Detection Result</h2>
             <div className="result-summary">
               <div className="result-label">
@@ -195,16 +195,6 @@ function App() {
               <h3>🤖 AI Detection</h3>
               <p>This content has been analyzed for AI-generated characteristics.</p>
               <p><strong>AI Generated:</strong> {aiGeneratedResult.is_ai_generated ? 'Yes' : 'No'}</p>
-            </div>
-            <div className="confidence-bar-container">
-              <div className="confidence-bar-label">Confidence Level</div>
-              <div className="confidence-bar">
-                <div 
-                  className={`confidence-fill ${aiGeneratedResult.is_ai_generated ? 'fake' : 'real'}`}
-                  style={{ width: `${aiGeneratedResult.confidence_score * 100}%` }}
-                ></div>
-              </div>
-              <div className="confidence-percent">{(aiGeneratedResult.confidence_score * 100).toFixed(2)}%</div>
             </div>
           </div>
         )}
