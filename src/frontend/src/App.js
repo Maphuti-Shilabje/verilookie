@@ -195,10 +195,25 @@ function App() {
 
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>Verilookie</h1>
-        <p>Your friendly neighborhood deepfake detector.</p>
+      {/* Professional, clean header */}
+      <header className="app-header">
+        <div className="header-container">
+          <div className="header-left">
+            <h1 className="app-logo">Verilookie</h1>
+          </div>
+          <div className="header-right">
+            <nav className="main-nav">
+              <a href="#how-it-works" className="nav-link">How it Works</a>
+              {/* Clickable level/XP indicator in navbar */}
+              <div className="user-level" onClick={() => console.log('Show level details')}>
+                <span className="level-text">Level {level}</span>
+                <span className="xp-text">{xp} XP</span>
+              </div>
+            </nav>
+          </div>
+        </div>
       </header>
+      
       <main>
         <UploadBox 
           onDetection={handleDetection} 
