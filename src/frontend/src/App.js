@@ -221,7 +221,33 @@ function App() {
           onAIGeneratedDetection={handleAIGeneratedDetection} 
           onUnifiedAnalysis={handleUnifiedAnalysis}
         />
-        {detectionResult && <ResultCard result={detectionResult} />}
+        {detectionResult && (
+          <div className={`result-card ${detectionResult.label === 'Fake' ? 'fake-result' : 'real-result'}`}>
+            <h2 className="result-title">🔍 Deepfake Detection Result</h2>
+            <div className="result-summary">
+              <div className="result-label">
+                <span className="label-text">Result:</span>
+                <span className={`label-value ${detectionResult.label === 'Fake' ? 'fake' : 'real'}`}>
+                  {detectionResult.label}
+                </span>
+              </div>
+              <div className="result-confidence">
+                <span className="confidence-text">Confidence:</span>
+                <span className="confidence-value">{(detectionResult.confidence * 100).toFixed(2)}%</span>
+              </div>
+            </div>
+            <div className="result-explanation">
+              <h3>📝 Explanation</h3>
+              <p>{detectionResult.explanation}</p>
+            </div>
+            <div className="result-rewards">
+              <h3>🏆 Rewards</h3>
+              <p>+10 XP for completing this analysis</p>
+              <p>Current Level: {level}</p>
+              <p>Total XP: {xp}</p>
+            </div>
+          </div>
+        )}
         {aiGeneratedResult && (
           <div className={`result-card ${aiGeneratedResult.label === 'AI Generated' ? 'fake-result' : 'real-result'}`}>
             <h2 className="result-title">🤖 AI Generation Detection Result</h2>
@@ -250,6 +276,12 @@ function App() {
                 <p><strong>AI Generated:</strong> {aiGeneratedResult.label === 'AI Generated' ? 'Yes' : 'No'}</p>
               )}
             </div>
+            <div className="result-rewards">
+              <h3>🏆 Rewards</h3>
+              <p>+15 XP for completing this AI analysis</p>
+              <p>Current Level: {level}</p>
+              <p>Total XP: {xp}</p>
+            </div>
           </div>
         )}
         {unifiedResult && (
@@ -274,6 +306,12 @@ function App() {
             <div className="ai-specific">
               <h3>🔍 Detection Pipeline</h3>
               <p>This result was generated using our unified detection pipeline that combines deepfake and AI generation detection.</p>
+            </div>
+            <div className="result-rewards">
+              <h3>🏆 Rewards</h3>
+              <p>{unifiedResult.type === 'Deepfake' ? '+20 XP for completing this deepfake analysis' : unifiedResult.type === 'AI-generated' ? '+15 XP for completing this AI analysis' : '+10 XP for completing this analysis'}</p>
+              <p>Current Level: {level}</p>
+              <p>Total XP: {xp}</p>
             </div>
           </div>
         )}
