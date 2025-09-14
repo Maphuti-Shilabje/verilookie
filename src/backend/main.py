@@ -1,11 +1,11 @@
-
 import os
 import shutil
 import cv2
+import librosa
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from transformers import ViTForImageClassification, ViTImageProcessor
+from transformers import ViTForImageClassification, ViTImageProcessor, Wav2Vec2ForSequenceClassification, Wav2Vec2Processor
 from PIL import Image
 import torch
 
@@ -35,16 +35,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load Model and Processor
-MODEL_NAME = "prithivMLmods/Deep-Fake-Detector-v2-Model"
+# Load Image Model and Processor
+IMAGE_MODEL_NAME = "prithivMLmods/Deep-Fake-Detector-v2-Model"
 
 try:
-    processor = ViTImageProcessor.from_pretrained(MODEL_NAME)
-    model = ViTForImageClassification.from_pretrained(MODEL_NAME)
+    image_processor = ViTImageProcessor.from_pretrained(IMAGE_MODEL_NAME)
+    image_model = ViTForImageClassification.from_pretrained(IMAGE_MODEL_NAME)
 except Exception as e:
-    print(f"Error loading model: {e}")
-    processor = None
-    model = None
+    print(f"Error loading image model: {e}")
+    image_processor = None
+    image_model = None
+
+# Load Audio Model and Processor
+AUDIO_MODEL_NAME = "MelodyMachine/Deepfake-audio-detection-V2"
+
+try:
+    audio_processor = Wav2Vec2Processor.from_pretrained(AUDIO_MODEL_NAME)
+    audio_model = Wav2Vec2ForSequenceClassification.from_pretrained(AUDIO_MODEL_NAME)
+except Exception as e:
+    print(f"Error loading audio model: {e}")
+    audio_processor = None
+    audio_model = None
 
 class DetectionResult(BaseModel):
     confidence_score: float
@@ -58,22 +69,24 @@ class AIGeneratedDetectionResult(BaseModel):
     is_ai_generated: bool
 
 class Detector:
-    def __init__(self, model, processor):
-        self.model = model
-        self.processor = processor
+    def __init__(self, image_model, image_processor, audio_model, audio_processor):
+        self.image_model = image_model
+        self.image_processor = image_processor
+        self.audio_model = audio_model
+        self.audio_processor = audio_processor
 
     def detect_image(self, image_path: str) -> DetectionResult:
-        if self.model is None or self.processor is None:
-            raise HTTPException(status_code=503, detail="Model is not available")
+        if self.image_model is None or self.image_processor is None:
+            raise HTTPException(status_code=503, detail="Image model is not available")
         try:
             image = Image.open(image_path).convert("RGB")
-            inputs = self.processor(images=image, return_tensors="pt")
-            outputs = self.model(**inputs)
+            inputs = self.image_processor(images=image, return_tensors="pt")
+            outputs = self.image_model(**inputs)
             logits = outputs.logits
             probabilities = torch.nn.functional.softmax(logits, dim=-1)
             confidence, predicted_class_idx = torch.max(probabilities, dim=1)
 
-            label = self.model.config.id2label[predicted_class_idx.item()]
+            label = self.image_model.config.id2label[predicted_class_idx.item()]
             confidence_score = confidence.item()
 
             if label == "Realism":
@@ -89,7 +102,7 @@ class Detector:
                 explanation=explanation,
             )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error during detection: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error during image detection: {str(e)}")
     
     def detect_ai_generated(self, image_path: str) -> AIGeneratedDetectionResult:
         """Detect if an image is AI-generated using NVIDIA API"""
@@ -126,6 +139,9 @@ class Detector:
             raise HTTPException(status_code=500, detail=f"Error during AI-generated detection: {str(e)}")
 
     def detect_video(self, video_path: str, frames_to_process: int = 5) -> DetectionResult:
+        if self.image_model is None or self.image_processor is None:
+            raise HTTPException(status_code=503, detail="Image model is not available for video frame analysis")
+
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             raise HTTPException(status_code=500, detail="Error opening video file")
@@ -170,7 +186,44 @@ class Detector:
 
         return DetectionResult(confidence_score=avg_confidence, label=final_label, explanation=explanation)
 
-detector = Detector(model, processor)
+    def detect_audio(self, audio_path: str) -> DetectionResult:
+        if self.audio_model is None or self.audio_processor is None:
+            raise HTTPException(status_code=503, detail="Audio model is not available")
+        try:
+            # Load audio and resample to 16kHz (common for Wav2Vec2 models)
+            speech, sample_rate = librosa.load(audio_path, sr=16000)
+
+            # Process audio
+            inputs = self.audio_processor(speech, sampling_rate=sample_rate, return_tensors="pt")
+            
+            # Get model predictions
+            with torch.no_grad():
+                logits = self.audio_model(**inputs).logits
+            
+            # Apply softmax to get probabilities
+            probabilities = torch.nn.functional.softmax(logits, dim=-1)
+            
+            # Get predicted class and confidence
+            confidence, predicted_class_idx = torch.max(probabilities, dim=1)
+            
+            # Map class ID to label (assuming 0 for fake, 1 for real based on common practice)
+            # You might need to verify the actual label mapping for MelodyMachine/Deepfake-audio-detection-V2
+            # For now, let's assume 0 is fake, 1 is real
+            label_mapping = {0: "Fake", 1: "Real"}
+            label = label_mapping.get(predicted_class_idx.item(), "Unknown")
+            confidence_score = confidence.item()
+
+            explanation = "The audio has been analyzed for deepfake characteristics." if label == "Fake" else "The audio appears to be authentic."
+
+            return DetectionResult(
+                confidence_score=confidence_score,
+                label=label,
+                explanation=explanation,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error during audio detection: {str(e)}")
+
+detector = Detector(image_model, image_processor, audio_model, audio_processor)
 
 @app.post("/detect", response_model=DetectionResult)
 async def detect(file: UploadFile = File(...)):
@@ -184,11 +237,13 @@ async def detect(file: UploadFile = File(...)):
             result = detector.detect_image(temp_file_path)
         elif file.content_type.startswith("video/"):
             result = detector.detect_video(temp_file_path)
+        elif file.content_type.startswith("audio/"):
+            result = detector.detect_audio(temp_file_path)
         else:
             result = DetectionResult(
                 confidence_score=0.0,
                 label="Not Supported",
-                explanation="This file type is not supported. Please upload an image or video."
+                explanation="This file type is not supported. Please upload an image, video, or audio file."
             )
     finally:
         os.remove(temp_file_path)
