@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 
-function UploadBox({ onDetection }) {
+function UploadBox({ onDetection, onAIGeneratedDetection }) {
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -9,7 +9,7 @@ function UploadBox({ onDetection }) {
     setFile(event.target.files[0]);
   };
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event, isAIGenerated = false) => {
     event.preventDefault();
     if (!file) {
       alert('Please select a file first!');
@@ -21,7 +21,8 @@ function UploadBox({ onDetection }) {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:8000/detect', {
+      const endpoint = isAIGenerated ? 'http://localhost:8000/detect-ai-generated' : 'http://localhost:8000/detect';
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
       });
@@ -31,7 +32,11 @@ function UploadBox({ onDetection }) {
       }
 
       const result = await response.json();
-      onDetection(result);
+      if (isAIGenerated) {
+        onAIGeneratedDetection(result);
+      } else {
+        onDetection(result);
+      }
     } catch (error) {
       console.error('Error during detection:', error);
       alert('An error occurred during detection.');
@@ -43,11 +48,25 @@ function UploadBox({ onDetection }) {
   return (
     <div className="upload-box">
       <h2>Upload a file to check</h2>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={(e) => e.preventDefault()}>
         <input type="file" onChange={handleFileChange} />
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? 'Analyzing...' : 'Analyze'}
-        </button>
+        <div style={{ marginTop: '10px' }}>
+          <button 
+            type="button" 
+            onClick={(e) => handleSubmit(e, false)} 
+            disabled={isLoading}
+            style={{ marginRight: '10px' }}
+          >
+            {isLoading ? 'Analyzing...' : 'Analyze for Deepfakes'}
+          </button>
+          <button 
+            type="button" 
+            onClick={(e) => handleSubmit(e, true)} 
+            disabled={isLoading}
+          >
+            {isLoading ? 'Checking...' : 'Check for AI Generation'}
+          </button>
+        </div>
       </form>
     </div>
   );

@@ -9,6 +9,16 @@ from transformers import ViTForImageClassification, ViTImageProcessor
 from PIL import Image
 import torch
 
+# Import NVIDIA client
+try:
+    from nvidia_client import NvidiaAIClient
+    nvidia_client = NvidiaAIClient()
+    NVIDIA_API_AVAILABLE = True
+except Exception as e:
+    print(f"Warning: NVIDIA API not available: {e}")
+    nvidia_client = None
+    NVIDIA_API_AVAILABLE = False
+
 # Create the temp directory if it doesn't exist
 if not os.path.exists("temp"):
     os.makedirs("temp")
@@ -40,6 +50,12 @@ class DetectionResult(BaseModel):
     confidence_score: float
     label: str
     explanation: str
+
+class AIGeneratedDetectionResult(BaseModel):
+    confidence_score: float
+    label: str
+    explanation: str
+    is_ai_generated: bool
 
 class Detector:
     def __init__(self, model, processor):
@@ -74,6 +90,40 @@ class Detector:
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error during detection: {str(e)}")
+    
+    def detect_ai_generated(self, image_path: str) -> AIGeneratedDetectionResult:
+        """Detect if an image is AI-generated using NVIDIA API"""
+        if not NVIDIA_API_AVAILABLE or nvidia_client is None:
+            raise HTTPException(status_code=503, detail="NVIDIA API is not available")
+        
+        try:
+            result = nvidia_client.detect_ai_generated_image(image_path)
+            
+            # Check if the detection was successful
+            if not result.get("success", False):
+                raise HTTPException(status_code=500, detail=f"AI detection failed: {result.get('error', 'Unknown error')}")
+            
+            # Extract the detection data
+            ai_probability = result.get("ai_probability", 0.0)
+            is_ai_generated = result.get("is_ai_generated", False)
+            
+            label = "AI Generated" if is_ai_generated else "Not AI Generated"
+            
+            explanation = (
+                "This image has been detected as AI-generated based on artifacts and patterns "
+                "characteristic of generative models." if is_ai_generated else
+                "This image does not show strong signs of being AI-generated."
+            )
+            
+            return AIGeneratedDetectionResult(
+                confidence_score=ai_probability,
+                label=label,
+                explanation=explanation,
+                is_ai_generated=is_ai_generated
+            )
+                
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error during AI-generated detection: {str(e)}")
 
     def detect_video(self, video_path: str, frames_to_process: int = 5) -> DetectionResult:
         cap = cv2.VideoCapture(video_path)
@@ -141,6 +191,24 @@ async def detect(file: UploadFile = File(...)):
                 explanation="This file type is not supported. Please upload an image or video."
             )
     finally:
+        os.remove(temp_file_path)
+
+    return result
+
+@app.post("/detect-ai-generated", response_model=AIGeneratedDetectionResult)
+async def detect_ai_generated(file: UploadFile = File(...)):
+    temp_file_path = os.path.join("temp", file.filename)
+    with open(temp_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    result = None
+    try:
+        if file.content_type.startswith("image/"):
+            result = detector.detect_ai_generated(temp_file_path)
+        else:
+            raise HTTPException(status_code=400, detail="Only image files are supported for AI-generated detection.")
+    finally:
+        # Clean up the temp file
         os.remove(temp_file_path)
 
     return result
