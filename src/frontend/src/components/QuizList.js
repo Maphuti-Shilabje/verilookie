@@ -3,7 +3,7 @@ import './QuizList.css';
 
 function QuizList({ addXp, onComplete }) {
   const [quizzes, setQuizzes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -13,24 +13,57 @@ function QuizList({ addXp, onComplete }) {
 
   // Load quizzes from the backend
   useEffect(() => {
-    const fetchQuizzes = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('http://localhost:8000/quizzes/user/user123/available');
-        if (!response.ok) {
-          throw new Error('Failed to fetch quizzes');
-        }
-        const quizzesData = await response.json();
-        setQuizzes(Object.values(quizzesData));
-        setLoading(false);
-      } catch (err) {
-        setError(err.message);
-        setLoading(false);
-      }
-    };
-
     fetchQuizzes();
   }, []);
+
+  const fetchQuizzes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('http://localhost:8000/quizzes/user/user123/available');
+      if (!response.ok) {
+        throw new Error('Failed to fetch quizzes');
+      }
+      const quizzesData = await response.json();
+      setQuizzes(Object.values(quizzesData));
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  // Function to generate a new quiz
+  const generateQuiz = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // In a real implementation, you would get the user ID from authentication
+      const userId = 'user123';
+      
+      const response = await fetch('http://localhost:8000/quizzes/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          topic: 'AI detection and deepfakes'
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate quiz');
+      }
+      
+      // After generating a new quiz, refresh the list
+      await fetchQuizzes();
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
 
   const handleQuizSelect = (quiz) => {
     setSelectedQuiz(quiz);
@@ -146,8 +179,22 @@ function QuizList({ addXp, onComplete }) {
     <div className="quiz">
       {!selectedQuiz && (
         <div className="quiz-list">
-          <h3>Available Quizzes</h3>
-          {quizzes.length === 0 ? (
+          <div className="quiz-header">
+            <h3>Available Quizzes</h3>
+            <button onClick={generateQuiz} className="generate-quiz-button" disabled={loading}>
+              {loading ? 'Generating...' : 'Generate New Quiz'}
+            </button>
+          </div>
+          {error && <div className="error-message">Error: {error}</div>}
+          {loading && (
+            <div className="loading-container">
+              <div className="loading-bar">
+                <div className="loading-progress"></div>
+              </div>
+              <p className="loading-text">Generating your personalized quiz...</p>
+            </div>
+          )}
+          {quizzes.length === 0 && !loading ? (
             <p>No quizzes available at the moment.</p>
           ) : (
             <div className="quiz-grid">
