@@ -39,7 +39,7 @@ function UploadBox({ onDetection, onAIGeneratedDetection }) {
       }
     } catch (error) {
       console.error('Error during detection:', error);
-      alert('An error occurred during detection.');
+      alert('An error occurred during detection. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -47,24 +47,46 @@ function UploadBox({ onDetection, onAIGeneratedDetection }) {
 
   return (
     <div className="upload-box">
-      <h2>Upload a file to check</h2>
-      <form onSubmit={(e) => e.preventDefault()}>
-        <input type="file" onChange={handleFileChange} />
-        <div style={{ marginTop: '10px' }}>
+      <h2 className="upload-title">🔍 File Analysis</h2>
+      <div className="upload-instructions">
+        <p>Upload an image or video file to check for deepfakes or AI generation</p>
+      </div>
+      <form onSubmit={(e) => e.preventDefault()} className="upload-form">
+        <div className="file-input-container">
+          <label className="file-input-label">
+            <span className="file-input-text">
+              {file ? '📁 ' + file.name : 'Choose File'}
+            </span>
+            <input 
+              type="file" 
+              onChange={handleFileChange} 
+              className="file-input"
+              accept="image/*,video/*"
+            />
+          </label>
+          {file && (
+            <div className="file-info">
+              <span className="file-name">{file.name}</span>
+              <span className="file-size">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+            </div>
+          )}
+        </div>
+        <div className="button-group">
           <button 
             type="button" 
             onClick={(e) => handleSubmit(e, false)} 
             disabled={isLoading}
-            style={{ marginRight: '10px' }}
+            className="detect-button"
           >
-            {isLoading ? 'Analyzing...' : 'Analyze for Deepfakes'}
+            {isLoading ? '🔍 Analyzing...' : '🕵️ Deepfake Detection'}
           </button>
           <button 
             type="button" 
             onClick={(e) => handleSubmit(e, true)} 
             disabled={isLoading}
+            className="ai-button"
           >
-            {isLoading ? 'Checking...' : 'Check for AI Generation'}
+            {isLoading ? '🤖 Checking...' : '🤖 AI Generation Check'}
           </button>
         </div>
       </form>
