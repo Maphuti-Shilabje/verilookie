@@ -1,61 +1,103 @@
 
 import React, { useState } from 'react';
 
-const questions = [
-  {
-    question: "What is a common sign of a deepfake video?",
-    options: ["Blurry background", "Unnatural blinking", "Loud audio", "Bright colors"],
-    answer: "Unnatural blinking",
-  },
-  {
-    question: "What is phishing?",
-    options: ["A type of fishing", "A scam to steal personal information", "A video game", "A social media trend"],
-    answer: "A scam to steal personal information",
-  },
-  {
-    question: "Which of these is a sign of an AI-generated image?",
-    options: ["Perfect symmetry", "Unnatural lighting", "Pixelation", "Watermarks"],
-    answer: "Unnatural lighting",
-  },
-  {
-    question: "What should you do if you suspect a deepfake?",
-    options: ["Share it immediately", "Verify the source", "Ignore it", "Create more deepfakes"],
-    answer: "Verify the source",
-  },
-  {
-    question: "Which file type is most commonly used for deepfakes?",
-    options: [".txt", ".mp4", ".pdf", ".exe"],
-    answer: ".mp4",
-  },
-];
-
 function Quiz({ addXp, onComplete }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [showScore, setShowScore] = useState(false);
-  const [selectedAnswers, setSelectedAnswers] = useState([]);
-  const [userSelections, setUserSelections] = useState({});
+  const [quiz, setQuiz] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [answers, setAnswers] = useState({});
 
-  const handleAnswer = (answer) => {
+  // Function to generate quiz when button is clicked
+  const generateQuiz = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // In a real implementation, you would get the user ID from authentication
+      const userId = 'user123';
+      
+      const response = await fetch('http://localhost:8000/quizzes/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          topic: 'AI detection and deepfakes'
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate quiz');
+      }
+      
+      const quizData = await response.json();
+      setQuiz(quizData);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  const handleAnswer = (questionId, answer) => {
     // Track user selection
-    setUserSelections(prev => ({
+    setAnswers(prev => ({
       ...prev,
-      [currentQuestion]: answer
+      [questionId]: answer
     }));
     
-    // Check if answer is correct
-    const isCorrect = answer === questions[currentQuestion].answer;
-    if (isCorrect) {
-      setCorrectAnswers(prev => prev + 1);
-    }
-
     const nextQuestion = currentQuestion + 1;
-    if (nextQuestion < questions.length) {
+    if (nextQuestion < quiz.questions.length) {
       setCurrentQuestion(nextQuestion);
     } else {
       // Quiz completed
       setShowScore(true);
-      onComplete && onComplete(correctAnswers + (isCorrect ? 1 : 0), questions.length);
+    }
+  };
+
+  const submitQuiz = async () => {
+    if (!quiz) return;
+    
+    try {
+      // In a real implementation, you would get the user ID from authentication
+      const userId = 'user123';
+      
+      const response = await fetch(`http://localhost:8000/quizzes/${quiz.id}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          quiz_id: quiz.id,
+          answers: answers
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit quiz');
+      }
+      
+      const result = await response.json();
+      
+      // Update state with actual results
+      setCorrectAnswers(result.score);
+      
+      // Add XP
+      if (addXp) {
+        addXp(result.xp_earned);
+      }
+      
+      // Call onComplete callback
+      if (onComplete) {
+        onComplete(result.score, quiz.questions.length);
+      }
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -63,17 +105,20 @@ function Quiz({ addXp, onComplete }) {
     setCurrentQuestion(0);
     setCorrectAnswers(0);
     setShowScore(false);
-    setSelectedAnswers([]);
-    setUserSelections({});
+    setAnswers({});
+    setQuiz(null);
   };
 
-  const getOptionClass = (option, index) => {
+  const getOptionClass = (option, index, question) => {
     let className = "quiz-option";
     
-    if (showScore && currentQuestion === index) {
-      if (option === questions[currentQuestion].answer) {
+    if (showScore && question && question.id) {
+      // Mark correct answers
+      if (option === question.correct_answer) {
         className += " correct-answer";
-      } else if (userSelections[currentQuestion] === option) {
+      } 
+      // Mark user's incorrect answers
+      else if (answers && answers[question.id] === option) {
         className += " incorrect-answer";
       }
     }
@@ -84,43 +129,59 @@ function Quiz({ addXp, onComplete }) {
   return (
     <div className="quiz">
       <h2 className="quiz-title">🧠 Scam Awareness Quiz</h2>
-      {showScore ? (
+      
+      {!quiz && !loading && !error && (
+        <div className="quiz-start">
+          <p>Click the button below to generate a personalized quiz based on your previous performance.</p>
+          <button onClick={generateQuiz} className="generate-quiz-button">
+            Generate Quiz
+          </button>
+        </div>
+      )}
+      
+      {loading && <div className="quiz">Generating quiz...</div>}
+      
+      {error && <div className="quiz">Error: {error}</div>}
+      
+      {quiz && showScore && (
         <div className="quiz-results">
           <div className="score-circle">
             <div className="score-value">{correctAnswers}</div>
-            <div className="score-total">/ {questions.length}</div>
+            <div className="score-total">/ {quiz.questions.length}</div>
           </div>
           <div className="score-percentage">
-            {Math.round((correctAnswers / questions.length) * 100)}% Correct
+            {Math.round((correctAnswers / quiz.questions.length) * 100)}% Correct
           </div>
-          {correctAnswers === questions.length && (
+          {correctAnswers === quiz.questions.length && (
             <div className="perfect-score">🎉 Perfect Score! Security Expert!</div>
           )}
           <div className="score-message">
-            {correctAnswers >= questions.length * 0.8 ? "Excellent work! You're well-prepared to spot scams." :
-             correctAnswers >= questions.length * 0.6 ? "Good job! You're on the right track." :
+            {correctAnswers >= quiz.questions.length * 0.8 ? "Excellent work! You're well-prepared to spot scams." :
+             correctAnswers >= quiz.questions.length * 0.6 ? "Good job! You're on the right track." :
              "Keep learning to improve your scam detection skills!"}
           </div>
-          <button onClick={restartQuiz} className="restart-button">
-            🔄 Try Again
+          <button onClick={submitQuiz} className="restart-button">
+            🔄 Submit & Finish
           </button>
         </div>
-      ) : (
+      )}
+      
+      {quiz && !showScore && (
         <div className="quiz-content">
           <div className="question-section">
             <div className="question-progress">
-              Question {currentQuestion + 1} of {questions.length}
+              Question {currentQuestion + 1} of {quiz.questions.length}
             </div>
             <div className="question-text">
-              {questions[currentQuestion].question}
+              {quiz.questions[currentQuestion].question}
             </div>
           </div>
           <div className="answer-section">
-            {questions[currentQuestion].options.map((option, index) => (
+            {quiz.questions[currentQuestion].options.map((option, index) => (
               <button 
                 key={index} 
-                onClick={() => handleAnswer(option)}
-                className={getOptionClass(option, currentQuestion)}
+                onClick={() => handleAnswer(quiz.questions[currentQuestion].id, option)}
+                className={getOptionClass(option, index, quiz.questions[currentQuestion])}
               >
                 {option}
               </button>
@@ -130,11 +191,11 @@ function Quiz({ addXp, onComplete }) {
             <div className="progress-bar-container">
               <div 
                 className="progress-bar" 
-                style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+                style={{ width: `${((currentQuestion + 1) / quiz.questions.length) * 100}%` }}
               ></div>
             </div>
             <div className="progress-text">
-              {Math.round(((currentQuestion + 1) / questions.length) * 100)}% Complete
+              {Math.round(((currentQuestion + 1) / quiz.questions.length) * 100)}% Complete
             </div>
           </div>
         </div>

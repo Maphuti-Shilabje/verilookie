@@ -1,35 +1,46 @@
-> *This document serves as a template for you to write **usage** instructions for your project.* 
-
 # Usage Guide
 
 ## ▶️ Running the Application
-``` c
-// TODO: Explain how to launch the project.
-// Add commands or steps here.
+```bash
+# Start the backend server
+cd src/backend
+uvicorn main:app --reload --port 8000
 ```
-``` bash
-# Example
+
+```bash
+# Start the frontend (in a separate terminal)
+cd src/frontend
 npm start
 ```
 
 ## 🖥️ How to Use
-``` c
-// TODO: Provide step-by-step usage instructions for judges/users.
-```
-1. Step 1 -> Do this
-2. Step 2 -> Then this
-3. Step 3 -> See the output/result
+
+### Deepfake and AI Image Detection
+1. Open the application in your browser
+2. Upload an image or video file using the upload box
+3. Wait for the analysis to complete
+4. View the detailed results about authenticity, confidence scores, and explanations
+
+### Gamification System
+1. Earn XP for each detection you perform
+2. Take quizzes to earn additional XP
+3. Track your progress through different levels in your profile
+4. Unlock achievements as you use the application
+
+### Personalized Quiz Feature
+1. Navigate to the quiz section
+2. Take AI-generated quizzes tailored to your knowledge level
+3. Difficulty adapts based on your previous performance
+4. Earn XP for quiz completion with bonuses for high scores
+5. Retake quizzes for additional practice
+
+See [Quiz Feature Documentation](quiz_feature.md) for technical details.
 
 ## 🎥 Demo
-``` c
-// TODO: Link your demo video and PowerPoint here
-```
 Check out the Demos: 
 - [Demo Video](../demo/demo.mp4)
 - [Demo Presentation](../demo/demo.pptx)
 
 ## 📌 Notes
-``` c
-// TODO: Add any special instructions, caveats, or tips
-// for using your project.
-```
+- Make sure you have set up your GEMINI_API_KEY in the .env file for the quiz feature to work
+- The application requires an internet connection to access the Gemini AI API

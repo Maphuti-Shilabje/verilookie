@@ -1,149 +1,149 @@
 import React, { useState, useEffect } from 'react';
+import './Gamification.css';
 import GamificationService from '../services/GamificationService';
 
-function Gamification({ 
-  xp, 
-  level, 
-  badges, 
-  streak, 
-  achievements,
-  onLevelUp 
-}) {
-  const [showAchievement, setShowAchievement] = useState(null);
-  const [newBadge, setNewBadge] = useState(null);
-  const [xpGain, setXpGain] = useState(0);
+const Gamification = ({ xp, level, badges, streak, achievements, onLevelUp, show, onClose }) => {
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpData, setLevelUpData] = useState(null);
+  const [prevLevel, setPrevLevel] = useState(level);
 
+  // Calculate current level data
+  const levelData = GamificationService.calculateLevel(xp);
+  
   // Check for level up
   useEffect(() => {
-    const currentLevel = GamificationService.calculateLevel(xp);
-    if (currentLevel.level > level) {
-      onLevelUp && onLevelUp(currentLevel);
+    if (level > prevLevel) {
+      setLevelUpData(levelData);
+      setShowLevelUp(true);
+      onLevelUp(levelData);
+      
+      // Auto-hide level up notification after 3 seconds
+      const timer = setTimeout(() => {
+        setShowLevelUp(false);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
     }
-  }, [xp, level, onLevelUp]);
+    setPrevLevel(level);
+  }, [level, prevLevel, levelData, onLevelUp]);
 
-  // XP progress calculation
-  const currentLevelData = GamificationService.calculateLevel(xp);
-  const xpInCurrentLevel = xp - currentLevelData.minXP;
-  const xpForNextLevel = currentLevelData.maxXP === Infinity 
-    ? GamificationService.xpToNextLevel(xp)
-    : currentLevelData.maxXP - currentLevelData.minXP;
-  const progressPercentage = xpForNextLevel > 0 
-    ? Math.min(100, (xpInCurrentLevel / xpForNextLevel) * 100)
-    : 100;
+  // Calculate XP to next level
+  const xpToNext = levelData.xpForNext - xp;
+  
+  // Calculate progress percentage
+  const progressPercent = levelData.currentLevelXp > 0 
+    ? Math.min(100, Math.max(0, (xp - levelData.currentLevelXp) / (levelData.xpForNext - levelData.currentLevelXp) * 100))
+    : 0;
 
-  // Streak bonus calculation
+  // Calculate streak bonus
   const streakBonus = GamificationService.calculateStreakBonus(streak);
 
-  // Handle XP gain animation
-  const handleXpGain = (amount) => {
-    setXpGain(amount);
-    setTimeout(() => setXpGain(0), 2000);
-  };
+  // Get unlocked badges
+  const unlockedBadges = GamificationService.getUnlockedBadges(xp, achievements.map(a => a.id));
 
   return (
-    <div className="gamification">
-      <h2 className="gamification-title">🏆 Your Progress</h2>
-      
-      {/* Level Card */}
-      <div className="level-card">
-        <div className="level-header">
-          <div className="level-badge">Level {currentLevelData.level}</div>
-          <div className="level-title">{currentLevelData.name}</div>
-        </div>
+    <div className={`gamification-modal ${show ? 'open' : ''}`}>
+      <div className="gamification-overlay" onClick={onClose}></div>
+      <div className="gamification-content">
+        <button className="close-button" onClick={onClose}>×</button>
+        <h2 className="gamification-title">Your Progress</h2>
         
-        <div className="xp-info">
-          <div className="xp-total">{xp} <span className="xp-label">XP</span></div>
-          <div className="xp-to-next">
-            {currentLevelData.maxXP !== Infinity 
-              ? `${xpInCurrentLevel}/${xpForNextLevel} XP to next level`
-              : '👑 Max level reached!'}
+        {/* Level Up Notification */}
+        {showLevelUp && levelUpData && (
+          <div className="level-up-notification">
+            <h3>Congratulations! 🎉</h3>
+            <p>You've reached Level {levelUpData.level} - {levelUpData.name}!</p>
+          </div>
+        )}
+        
+        {/* Level Card */}
+        <div className="level-card">
+          <div className="level-header">
+            <div className="level-badge">Level {levelData.level}</div>
+            <h3 className="level-title">{levelData.name}</h3>
+          </div>
+          <div className="xp-info">
+            <div className="xp-total">
+              <div className="xp-value">{xp}</div>
+              <div className="xp-label">Total XP</div>
+            </div>
+            <div className="xp-to-next">
+              {xpToNext > 0 ? `${xpToNext} XP to next level` : 'Max level reached!'}
+            </div>
+          </div>
+          <div className="progress-container">
+            <div 
+              className={`progress-bar ${xp > levelData.currentLevelXp ? 'gaining' : ''}`}
+              style={{ width: `${progressPercent}%` }}
+            ></div>
           </div>
         </div>
         
-        {/* Progress bar with animation */}
-        <div className="progress-container">
-          <div 
-            className={`progress-bar ${xpGain > 0 ? 'gaining' : ''}`}
-            style={{ width: `${progressPercentage}%` }}
-          >
-            {xpGain > 0 && (
-              <div className="xp-gain-animation">+{xpGain} XP</div>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      {/* Streak Section */}
-      {streak > 0 && (
+        {/* Streak Card */}
         <div className="streak-card">
           <div className="streak-content">
             <div className="streak-icon">🔥</div>
             <div className="streak-info">
               <div className="streak-days">{streak} day{streak !== 1 ? 's' : ''} streak!</div>
-              {streakBonus > 0 && (
-                <div className="streak-bonus">+{streakBonus} XP bonus</div>
-              )}
+              <div className="streak-bonus">Daily bonus: +{streakBonus} XP</div>
             </div>
           </div>
         </div>
-      )}
-      
-      {/* Badges Section */}
-      <div className="badges-section">
-        <div className="section-header">
-          <h3>🏅 Badges ({badges.length})</h3>
-          <div className="section-subtitle">Earned through your achievements</div>
-        </div>
         
-        {badges.length > 0 ? (
-          <div className="badges-grid">
-            {badges.map((badge, index) => (
-              <div key={index} className="badge-card" title={badge.description}>
-                <div className="badge-icon">
-                  {badge.type === 'xp' ? '⭐' : '🎯'}
-                </div>
-                <div className="badge-content">
-                  <div className="badge-name">{badge.name}</div>
-                  <div className="badge-detail">
-                    {badge.type === 'xp' 
-                      ? `${badge.xp} XP` 
-                      : badge.description}
+        {/* Badges Section */}
+        <div className="section">
+          <div className="section-header">
+            <h3>Badges</h3>
+            <div className="section-subtitle">Earned achievements</div>
+          </div>
+          {unlockedBadges.length > 0 ? (
+            <div className="badges-grid">
+              {unlockedBadges.map((badge, index) => (
+                <div key={index} className="badge-card">
+                  <div className="badge-icon">{badge.icon}</div>
+                  <div className="badge-content">
+                    <div className="badge-name">{badge.name}</div>
+                    <div className="badge-detail">{badge.description}</div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="no-badges">
-            <div className="no-badges-icon">🏅</div>
-            <div className="no-badges-text">No badges yet. Keep using Verilookie to earn badges!</div>
-          </div>
-        )}
-      </div>
-      
-      {/* Achievements Section */}
-      {achievements && achievements.length > 0 && (
-        <div className="achievements-section">
-          <div className="section-header">
-            <h3>🌟 Recent Achievements</h3>
-            <div className="section-subtitle">Your latest accomplishments</div>
-          </div>
-          
-          <div className="achievements-list">
-            {achievements.slice(-3).reverse().map((achievement, index) => (
-              <div key={index} className="achievement-item">
-                <div className="achievement-icon">🏆</div>
-                <div className="achievement-content">
-                  <div className="achievement-name">{achievement.name}</div>
-                  <div className="achievement-desc">{achievement.description}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="no-badges">
+              <div className="no-badges-icon">🏆</div>
+              <div className="no-badges-text">No badges earned yet. Complete activities to earn your first badge!</div>
+            </div>
+          )}
         </div>
-      )}
+        
+        {/* Achievements Section */}
+        <div className="section">
+          <div className="section-header">
+            <h3>Achievements</h3>
+            <div className="section-subtitle">Your accomplishments</div>
+          </div>
+          {achievements.length > 0 ? (
+            <div className="achievements-list">
+              {achievements.map((achievement, index) => (
+                <div key={index} className="achievement-item">
+                  <div className="achievement-icon">{achievement.icon}</div>
+                  <div className="achievement-content">
+                    <div className="achievement-name">{achievement.name}</div>
+                    <div className="achievement-desc">{achievement.description}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="no-badges">
+              <div className="no-badges-icon">⭐</div>
+              <div className="no-badges-text">No achievements yet. Keep using Verilookie to unlock achievements!</div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
-}
+};
 
 export default Gamification;

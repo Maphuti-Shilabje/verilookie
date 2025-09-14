@@ -22,11 +22,17 @@ except Exception as e:
 # Import detection pipeline
 from detection_pipeline import DetectionPipeline, UnifiedDetectionResult
 
+# Import quizzes router
+from routers.quizzes import router as quizzes_router
+
 # Create the temp directory if it doesn't exist
 if not os.path.exists("temp"):
     os.makedirs("temp")
 
 app = FastAPI()
+
+# Include routers
+app.include_router(quizzes_router)
 
 # CORS Middleware
 origins = ["http://localhost:3000"]

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import Navbar from './components/Navbar';
 import UploadBox from './components/UploadBox';
 import ResultCard from './components/ResultCard';
 import Gamification from './components/Gamification';
@@ -18,6 +19,7 @@ function App() {
   const [achievements, setAchievements] = useState([]);
   const [lastActivityDate, setLastActivityDate] = useState(null);
   const [level, setLevel] = useState(1);
+  const [showGamificationModal, setShowGamificationModal] = useState(false);
 
   // Initialize from localStorage if available
   useEffect(() => {
@@ -170,21 +172,23 @@ function App() {
   };
 
   const handleQuizComplete = (score, total) => {
-    // Check for perfect score
-    if (score === total && total > 0) {
-      addXp(20); // Bonus for perfect score
-      setQuizPerfectScores(prev => prev + 1);
-      checkAndAddAchievements('quiz', { score, total });
-    } else if (score > 0) {
-      // Regular XP for correct answers (5 XP per correct answer)
-      addXp(score * 5);
-    }
+    // The XP is now added directly in the Quiz component when submitting
+    setQuizPerfectScores(prev => prev + (score === total ? 1 : 0));
+    checkAndAddAchievements('quiz', { score, total });
   };
 
   const handleLevelUp = (newLevel) => {
     // Could add special effects or notifications here
     console.log(`Level up! You are now level ${newLevel.level} (${newLevel.name})`);
     setLevel(newLevel.level);
+  };
+
+  const handleGamificationClick = () => {
+    setShowGamificationModal(true);
+  };
+
+  const closeGamificationModal = () => {
+    setShowGamificationModal(false);
   };
 
   // Calculate current level
@@ -194,7 +198,15 @@ function App() {
   const badges = GamificationService.getUnlockedBadges(xp, achievements.map(a => a.id));
 
   return (
+    <div>
+            <Navbar 
+        level={level} 
+        xp={xp} 
+        onGamificationClick={handleGamificationClick} 
+      />
     <div className="App">
+
+
       <header className="App-header">
         <h1>Verilookie</h1>
         <p>Your friendly neighborhood deepfake detector.</p>
@@ -268,12 +280,15 @@ function App() {
           streak={currentStreak}
           achievements={achievements}
           onLevelUp={handleLevelUp}
+          show={showGamificationModal}
+          onClose={closeGamificationModal}
         />
         <Quiz 
           addXp={addXp} 
           onComplete={handleQuizComplete}
         />
       </main>
+    </div>
     </div>
   );
 }
