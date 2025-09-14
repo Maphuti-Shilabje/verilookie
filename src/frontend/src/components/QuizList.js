@@ -172,8 +172,17 @@ function QuizList({ addXp, onComplete }) {
     return className;
   };
 
-  if (loading) return <div className="quiz">Loading quizzes...</div>;
-  if (error) return <div className="quiz">Error: {error}</div>;
+  if (loading && !selectedQuiz) return (
+    <div className="quiz">
+      <div className="loading-container">
+        <div className="loading-bar">
+          <div className="loading-progress"></div>
+        </div>
+        <p className="loading-text">Generating your personalized quiz...</p>
+      </div>
+    </div>
+  );
+  if (error && !selectedQuiz) return <div className="quiz">Error: {error}</div>;
 
   return (
     <div className="quiz">
@@ -194,9 +203,9 @@ function QuizList({ addXp, onComplete }) {
               <p className="loading-text">Generating your personalized quiz...</p>
             </div>
           )}
-          {quizzes.length === 0 && !loading ? (
+          {!loading && quizzes.length === 0 ? (
             <p>No quizzes available at the moment.</p>
-          ) : (
+          ) : !loading ? (
             <div className="quiz-grid">
               {quizzes.map((quiz) => (
                 <div key={quiz.id} className="quiz-card" onClick={() => handleQuizSelect(quiz)}>
@@ -207,7 +216,7 @@ function QuizList({ addXp, onComplete }) {
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       )}
       
